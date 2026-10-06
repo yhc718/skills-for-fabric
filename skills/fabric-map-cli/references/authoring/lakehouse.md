@@ -95,6 +95,14 @@ python -m venv <local-venv>
 & <local-venv>\Scripts\python.exe <skill-root>\scripts\inspect_lakehouse.py <downloaded-file>
 ```
 
+On Linux/macOS, use the environment's `bin/python`:
+
+```bash
+python3 -m venv /path/to/local-venv
+/path/to/local-venv/bin/python -m pip install -r /path/to/skill-root/scripts/requirements.txt
+/path/to/local-venv/bin/python /path/to/skill-root/scripts/inspect_lakehouse.py /path/to/downloaded-file
+```
+
 Use `--layer <exact-internal-name>` (repeatable) for vector PMTiles, `--field`
 for label/color/tooltip bindings, `--numeric-field` for sizes, and `--geometry
 point|line|polygon` to validate explicit geometry intent. `--filters` accepts a
@@ -113,6 +121,10 @@ or rendering. A decoder/dependency failure leaves inspection incomplete.
 - Check longitude/latitude coordinates and any declared CRS against EPSG:4326.
   Report an incompatible projection and stop; do not reinterpret projected
   coordinates as degrees or offer reprojection.
+  The inspector conservatively rejects an explicit legacy `crs: null` as an
+  unknown CRS, rather than assuming WGS84. An absent `crs` uses GeoJSON's
+  longitude/latitude convention. Confirm the source CRS in a separately
+  requested source-data workflow; Map authoring does not rewrite metadata.
 - Count the **whole file**, not a sample, the current filter, or exploded
   MultiPolygon parts. More than **100,000 features per file** blocks normal
   GeoJSON creation. Report the measured count and recommend PMTiles. A filter

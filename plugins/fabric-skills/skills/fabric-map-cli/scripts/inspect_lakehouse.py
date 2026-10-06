@@ -66,11 +66,12 @@ def validate_bounds(bounds):
     return list(bounds)
 
 
-def fit_bounds(bounds, width=1024, height=640, padding=64, minimum_zoom=1):
-    """Fit Web Mercator bounds with padding and a caller-supplied minimum zoom."""
+def fit_bounds(bounds, width=1024, height=640, padding=64, minimum_zoom=1, maximum_zoom=22):
+    """Fit Web Mercator bounds with padding and caller-supplied zoom limits."""
     west, south, east, north = validate_bounds(bounds)
     require(width > padding * 2 and height > padding * 2, "Viewport is smaller than padding")
     require(number(minimum_zoom) and 1 <= minimum_zoom <= 22, "Invalid minimum zoom")
+    require(number(maximum_zoom) and minimum_zoom <= maximum_zoom <= 22, "Invalid maximum zoom")
     require(east - west <= 180, "World/antimeridian bounds need an explicit camera, not a local fit")
 
     def mercator_y(latitude):
@@ -82,7 +83,7 @@ def fit_bounds(bounds, width=1024, height=640, padding=64, minimum_zoom=1):
     zoom = min(
         math.log2((width - padding * 2) / (512 * max(x_span, 1e-12))),
         math.log2((height - padding * 2) / (512 * max(y_span, 1e-12))),
-        22,
+        maximum_zoom,
     )
     latitude = math.degrees(math.atan(math.sinh(math.pi * (1 - (top + bottom)))))
     return {"center": [(west + east) / 2, latitude], "zoom": max(minimum_zoom, zoom)}
@@ -134,6 +135,7 @@ class Fields:
     def __init__(self):
         self.count = 0
         self.fields = {}
+        self._seen = {}
 
     def add(self, properties):
         self.count += 1
@@ -143,12 +145,15 @@ class Fields:
             stat["present"] += 1
             kind = value_type(value)
             stat["types"][kind] += 1
-            if kind in ("string", "number", "boolean", "null") and not any(
-                    value_type(v) == kind and v == value for v in stat["values"]):
-                if len(stat["values"]) < 100:
-                    stat["values"].append(value)
-                else:
-                    stat["valuesTruncated"] = True
+            if kind in ("string", "number", "boolean", "null"):
+                seen = self._seen.setdefault(key, set())
+                identity = (kind, value)
+                if identity not in seen:
+                    if len(seen) < 100:
+                        seen.add(identity)
+                        stat["values"].append(value)
+                    else:
+                        stat["valuesTruncated"] = True
             if kind == "number":
                 stat["min"] = value if stat["min"] is None else min(stat["min"], value)
                 stat["max"] = value if stat["max"] is None else max(stat["max"], value)
@@ -193,6 +198,9 @@ def geojson_features(path):
             if prefix == "type" and event == "string":
                 root_type = value
             if prefix == "crs" and event not in ("end_map", "map_key"):
+                require(event != "null",
+                        "GeoJSON declares crs: null; the source CRS is unknown. "
+                        "Confirm WGS84 longitude/latitude before Map authoring")
                 require(event == "start_map", "GeoJSON CRS must be a supported named CRS object")
                 has_crs = True
             if prefix == "crs.type" and event == "string":
@@ -416,7 +424,11 @@ def inspect_cog(path):
                   "errors": list(errors), "warnings": list(warnings)}
         if not valid:
             result["errors"].append("TIFF failed strict structural COG validation (not just a filename/tag check)")
-        if epsg != 3857:
+        if dataset.crs is None:
+            result["errors"].append("COG has no projection information; EPSG:3857 is required")
+        elif epsg is None:
+            result["errors"].append("COG projection cannot be identified as an EPSG code; EPSG:3857 is required")
+        elif epsg != 3857:
             result["errors"].append(f"Unsupported COG projection EPSG:{epsg}; Fabric Maps requires EPSG:3857")
         if colors not in (["red", "green", "blue"], ["red", "green", "blue", "alpha"]):
             result["errors"].append(f"Expected 3-band RGB or 4-band RGBA, found {colors}")

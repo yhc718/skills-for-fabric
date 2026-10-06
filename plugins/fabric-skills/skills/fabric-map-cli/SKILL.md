@@ -1,6 +1,6 @@
 ---
 name: fabric-map-cli
-description: "Creates, configures, filters, styles, and explains Microsoft Fabric Map items, including Lakehouse GeoJSON, PMTiles, and COG layers. Suggests maps for spatial coverage, distribution, proximity, and regional comparisons without creating one until requested. Clarifies ambiguous map experiences. Not Azure Maps applications/APIs or Power BI map visuals."
+description: "Creates, configures, deletes, lists, filters, styles, and explains Microsoft Fabric Map items, including Lakehouse GeoJSON, PMTiles, and COG layers. Suggests maps for spatial coverage, distribution, proximity, and regional comparisons without creating one until requested. Clarifies ambiguous map experiences. Not Azure Maps applications/APIs or Power BI map visuals."
 ---
 
 > **Telemetry -- MANDATORY.** Every `api.fabric.microsoft.com` request,

@@ -280,7 +280,7 @@ they return fragments, never deploy, and do not replace full-schema validation.
 | Intent | Saved setting |
 |---|---|
 | Show/hide | `layerSettings[].options.visible`; retain the source, settings, and ID |
-| Point labels | `options.dataLabelOptions.enabled: true` and `options.dataLabelKeys: ["<real-field>"]` |
+| Vector labels (points, lines, polygons) | `options.dataLabelOptions.enabled: true` and `options.dataLabelKeys: ["<real-field>"]` |
 | Tooltips | `options.enablePopups: true` and `options.tooltipKeys: ["<real-field>", ...]` |
 | Color by category | Geometry options' `enableSeriesGroup: true`, `seriesGroup: "<real-field>"`, `customColors`, and a matching color expression in `color`, `strokeColor`, or `fillColor` |
 | Point size by data | `bubbleOptions.sizeType: "data-driven"` and `sizeProperty: "<numeric-field>"` |
@@ -314,6 +314,9 @@ For equivalent sources with different sampling coverage, pass the same
 validated source inventory. Sorting each sample independently is not enough:
 missing categories can shift every later color. The expression must include
 the shared palette, not just categories observed in one tile sample.
+The builder rejects automatic palettes when field values are truncated or
+PMTiles sampling is incomplete. In either case, supply `category_colors` from
+a complete validated inventory; the builder can verify only observed categories.
 
 ### Filters and draw order
 
@@ -362,7 +365,9 @@ Persist `basemap.options.center` and `zoom`; source bounds alone do not save
 an initial view. Fit in Web Mercator with padding and a stated viewport
 assumption; [inspect_lakehouse.py](../scripts/inspect_lakehouse.py) provides
 `fit_bounds`. Never use a universal world/default zoom or average latitude as
-a substitute for fitting bounds. Check antimeridian, empty selections, point
+a substitute for fitting bounds. For a point or very small extent, pass an
+explicit `maximum_zoom` suited to the requested context; the helper retains
+the schema maximum of 22 by default. Check antimeridian, empty selections, point
 extents, and PMTiles zoom availability explicitly. The browser canvas may be a
 different size; check the reopened view at the observed viewport.
 

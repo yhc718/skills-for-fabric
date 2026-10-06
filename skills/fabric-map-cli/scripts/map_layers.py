@@ -7,7 +7,7 @@ These helpers create new entries only; edits must patch a fetched baseline.
 import json
 import uuid
 
-from inspect_lakehouse import require, require_fields, require_geometry
+from inspect_lakehouse import number, require, require_fields, require_geometry
 
 
 COLORS = ["#0072B2", "#E69F00", "#009E73", "#CC79A7", "#D55E00", "#56B4E9", "#332288"]
@@ -45,7 +45,6 @@ def text_filter(report, field, values, locked=True):
 
 def number_filter(report, field, minimum, maximum, locked=True):
     require_fields(report, [field], [field])
-    from inspect_lakehouse import number
     require(number(minimum) and number(maximum) and minimum <= maximum, "Invalid inclusive numeric range")
     return {"id": str(uuid.uuid4()), "type": "number", "field": field,
             "locked": locked, "min": minimum, "max": maximum}
@@ -83,7 +82,13 @@ def vector_layer(report, source_id, name, family, *, source_layer=None, label=No
         style = {"fillColor": color, "fillOpacity": opacity}
         options["polygonOptions"] = style
     if color_by:
-        values = sorted((v for v in evidence["fields"][color_by]["values"] if v is not None),
+        field = evidence["fields"][color_by]
+        require(category_colors is not None or (
+            not field["valuesTruncated"] and
+            (report["format"] != "pmtiles" or report["samplingComplete"])),
+            "Category inventory is incomplete; supply category_colors from a complete "
+            "validated inventory before coloring by category")
+        values = sorted((v for v in field["values"] if v is not None),
                         key=lambda value: (type(value).__name__, str(value)))
         palette = category_colors if category_colors is not None else {
             category_key(value): COLORS[i % len(COLORS)] for i, value in enumerate(values)}
