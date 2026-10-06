@@ -4,12 +4,13 @@ For authoring, read this after `../authoring.md` when a layer uses Lakehouse
 files. For capability questions, read the summary only; no source lookup is
 needed. The shared reference owns lifecycle, encoding, update, and readback.
 
-## Capabilities and follow-up inputs
+## Capabilities
 
 Lakehouse layers are file-backed and best suited to reference, boundary, vector
 tile, and imagery data. Supported documented formats include:
 
-- GeoJSON for point, line, and polygon features, up to 100,000 features per file.
+- GeoJSON for point, line, and polygon features in EPSG:4326
+  (longitude/latitude), up to 100,000 features per file.
 - PMTiles for vector tiles or raster imagery. Fabric can consume both, but its
   tileset generation supports vector tiles only.
 - Cloud Optimized GeoTIFF (COG) for raster imagery. Current documented support
@@ -31,31 +32,166 @@ from the request, existing layer, or scoped file discovery; clarify unresolved
 file or tileset-layer choices. Verify format and geometry/properties through
 the validation below rather than requesting them as setup inputs.
 
-Do not create, transform, upload, or delete Lakehouse files unless the user
-separately requests that data-plane work and the owning Lakehouse/Spark skill is
-loaded.
+Map authoring does not modify source data. Report local validation and service
+errors with the affected file or layer and the returned code/message, when
+available. Stop the failed workflow without offering reprojection, conversion,
+simplification, or derived files as recovery. Source-data preparation belongs
+to a separately requested Lakehouse/Spark workflow.
 
-## Resolution and validation
+## Resolve workspace, Lakehouse, and exact file
 
-1. Resolve the source workspace by exact name.
-2. Resolve the Lakehouse by exact display name and type `Lakehouse`.
-3. Verify the requested `Files/...` path through a documented OneLake metadata
-   or listing operation. Distinguish a confirmed missing path from an
-   unsupported operation, incomplete listing, or access failure.
-4. Confirm file type, the GeoJSON feature limit, PMTiles tile kind
-   (vector/raster), and applicable geometry/projection/band requirements.
-5. Reuse the resolved workspace and item IDs in `map.json`; never derive IDs
-   from names.
+Reuse IDs from a supplied Fabric URL or existing Map; verify the workspace with
+`GET /v1/workspaces/{workspaceId}` and the Lakehouse with
+`GET /v1/workspaces/{workspaceId}/lakehouses/{lakehouseId}`. For names, paginate
+workspaces and that workspace's Lakehouses and exact-match `displayName`; stop
+on ambiguity.
+
+Use the verified Lakehouse's `properties.oneLakeFilesPath` and the workspace's
+OneLake endpoint metadata, not a guessed hostname. Schemas-enabled Lakehouses
+may reject the **table** listing API; this is not evidence that files are missing.
+Discover files using the documented ADLS-compatible OneLake file interface:
+
+```http
+GET https://<verified-dfs-host>/<workspaceId>?resource=filesystem&directory=<lakehouseId>%2FFiles&recursive=true
+Authorization: Bearer <in-memory Storage-audience token>
+x-ms-version: 2023-11-03
+```
+
+Obtain the token with `az account get-access-token --resource
+https://storage.azure.com/`; never print or save it. Follow the
+`x-ms-continuation` response header until exhausted. For a supplied subdirectory,
+narrow discovery to that directory. Exact-match the requested `Files/...` path
+or basename among non-directory entries; duplicate basenames require selection,
+not the first match. Preserve filename case and spaces. URL-encode path
+segments for HTTP, but store the original `Files/...` path in the definition.
+Reject traversal paths.
+
+HEAD the resolved file and record length, ETag and modification time. Read its
+content (or verified byte ranges for archives), using conditional reads when
+available so validation and writing cannot mix different source versions.
+Use Storage tokens only for the verified OneLake host, Fabric tokens only for
+the public Fabric API, and never forward either to arbitrary redirects.
+
+Name an unresolved file after complete discovery or a confirmed path-not-found
+response. A permission error, timeout, or incomplete page is not "file missing."
+Perform **no Map write** for unresolved sources.
+Do not create a blank Map before source validation.
+
+## Inspect the selected sources
+
+Read content, not just the extension. Inspect each input independently even
+when two filenames appear to describe the same data. Keep evidence outside
+the Map definition; the schema does not accept arbitrary validation metadata.
+
+The optional read-only inspector
+[inspect_lakehouse.py](../../scripts/inspect_lakehouse.py) operates on verified
+local downloads. It never downloads, uploads, creates, or updates a Map.
+Install [requirements.txt](../../scripts/requirements.txt) into an isolated
+environment if using it:
+
+```powershell
+python -m venv <local-venv>
+& <local-venv>\Scripts\python.exe -m pip install -r <skill-root>\scripts\requirements.txt
+& <local-venv>\Scripts\python.exe <skill-root>\scripts\inspect_lakehouse.py <downloaded-file>
+```
+
+Use `--layer <exact-internal-name>` (repeatable) for vector PMTiles, `--field`
+for label/color/tooltip bindings, `--numeric-field` for sizes, and `--geometry
+point|line|polygon` to validate explicit geometry intent. `--filters` accepts a
+JSON array of typed inspection predicates (`field`, `op: eq|in|gt`, `value`) to
+compute a selected GeoJSON extent; these predicates are **not** serialized Map
+filters. Use the shared authoring reference for the saved filter shape.
+If using the inspector, report its errors and stop before writing. A successful
+report supports definition assembly; it does not guarantee service acceptance
+or rendering. A decoder/dependency failure leaves inspection incomplete.
+
+### GeoJSON
+
+- Validate the FeatureCollection, feature geometries, and finite coordinates.
+  Report unsupported or malformed geometry; do not convert it. Count null and
+  empty geometries separately rather than inventing locations.
+- Check longitude/latitude coordinates and any declared CRS against EPSG:4326.
+  Report an incompatible projection and stop; do not reinterpret projected
+  coordinates as degrees or offer reprojection.
+- Count the **whole file**, not a sample, the current filter, or exploded
+  MultiPolygon parts. More than **100,000 features per file** blocks normal
+  GeoJSON creation. Report the measured count and recommend PMTiles. A filter
+  is not a way around the file limit.
+- Inventory properties across all features: scalar types, null/missing counts,
+  real category values, numeric ranges, and usable name/description fields.
+  Validate requested fields and values against the exact layer. Keep leading
+  zero text codes. Labels on nameless features remain absent.
+- Compute full and selected geographic bounds from actual coordinates. Clarify
+  an empty or ambiguous feature selection before choosing the initial view.
+
+### Vector PMTiles
+
+- Check magic bytes, **archive version** (the inspector supports v3), section
+  offsets/lengths, compression, and the header tile type. This is independent
+  of the Map schema version. Require MVT for the vector path; raster PMTiles
+  must use a separately validated imagery path, not vector styling.
+- Validate longitude/latitude bounds, center and zoom range. Check metadata
+  against the header and report inconsistencies. An archive's suggested center
+  zoom is not an instruction to reset an existing Map camera.
+- Discover **all** `vector_layers[].id` values and fields; use `tilestats` when
+  present, then decode actual MVT tiles to verify geometry and requested fields.
+  The inspector records the sample budget and observed types. Increase
+  `--sample-tiles` or inspect targeted tiles if a requested layer/field is not
+  observed. Sampling must not be presented as exhaustive coverage.
+- Resolve requested layers against the real inventory, including their geometry
+  families. On a missing internal layer, name it and list the available choices;
+  do not write. Add settings only for the selected internal layers and share
+  one layer source per archive when appropriate.
+- Do not sum tiles, fragments, vertices, or appearances at multiple zooms as
+  logical features. For equivalent-file comparisons, compare archive metadata
+  with the complete GeoJSON count and, when identity matters, deduplicate stable
+  original feature IDs across tiles and compare IDs/properties. Disclose
+  metadata-only or sampled evidence. Tiling can clip, simplify, and duplicate
+  geometry without adding logical source features.
+- Minimum source zoom can be higher than a regional camera. Do not copy that
+  minimum into `options.minZoom` and accidentally hide a requested layer.
+  Verify the actual runtime at the saved regional view; report unavailable
+  detail rather than zooming to the wrong region or silently regenerating tiles.
+
+### Cloud Optimized GeoTIFF
+
+- Verify TIFF/BigTIFF content and **structural cloud optimization**, not `.tif`,
+  a `LAYOUT=COG` tag, or "tiled" alone. Use a structural validator such as
+  `rio_cogeo.cogeo.cog_validate(..., strict=True)` to check IFD/overview ordering,
+  internal tiling, and data layout. Surface errors and warnings.
+- Check EPSG:3857, 3-band RGB or 4-band RGBA, and the display-band data types.
+  The inspector supports Byte/uint8 imagery. Report incompatible projection,
+  bands, or types without offering conversion.
+- Record raster dimensions, blocks, overviews, projected extent and its
+  geographic transform. Use the imagery footprint for an imagery-focused
+  initial view, not the extent of contextual polygon layers.
+- Choose the opening view from the validated imagery extent and the user's
+  intended focus, accounting for applicable source and renderer constraints.
+  Do not assume a fixed zoom or generalize one file's behavior to other COGs.
+  Verify imagery at the saved view when rendering can be observed; otherwise
+  report it as unverified. If the requested view cannot be supported, explain
+  the limitation without silently changing the requested scope or source data.
+- Validate every image independently. Opacity and order are saved per imagery
+  layer. Attribute filtering, labels, tooltips and point styling do not apply.
+
+### Before writing
+
+Complete discovery, compatibility, field/geometry/filter selection, layer order,
+camera selection, and full-schema validation **before the first mutation**.
+For a multi-source create or update, a failed input blocks the whole requested
+write. Do not silently omit it, create a partial Map, or substitute another
+source. Report the failure without attempting source-data repair.
 
 ## Definition fragments
 
 Derive the reference branch from the operation's selected schema using the
 shared schema-selection rules. For a new Map whose schema supports the
-nondeprecated item-reference model, use a stable `datasourceId`:
+nondeprecated item-reference model, use a stable `datasourceId`. For a direct
+Lakehouse reference use the **resolved Lakehouse item ID** as that string:
 
 ```json
 {
-  "datasourceId": "lakehouse-source",
+  "datasourceId": "<resolved-lakehouse-guid>",
   "item": {
     "workspaceId": "<workspace-guid>",
     "itemId": "<lakehouse-guid>"
@@ -70,7 +206,7 @@ Link the layer source through that same data source:
   "id": "<stable-layer-source-id>",
   "name": "<source name>",
   "type": "geojson",
-  "datasourceId": "lakehouse-source",
+  "datasourceId": "<resolved-lakehouse-guid>",
   "relativePath": "Files/path/data.geojson"
 }
 ```
@@ -80,14 +216,24 @@ and layer-link fields that its applicable alternatives require. Do not combine
 the two representations. Preserve an existing Map's representation unless a
 schema migration is explicitly requested.
 
-PMTiles uses `type: "pmtiles"` and a `.pmtiles` relative path. COG uses the
-currently documented raster source type and must be validated against the live
-schema/documentation before authoring because raster support can evolve.
+Use the resolved item ID for new direct Lakehouse references so the source
+also resolves during rendering. This does not impose a UUID requirement on
+every string identifier. Preserve existing aliases during unrelated edits.
 
-Layer settings must reference the exact layer source ID. For PMTiles, choose
-`options.type: "vector"` or `"raster"` to match the archive's tile kind. Vector
-PMTiles can require a `sourceLayerId`/`options.sourceLayer` present in the
-tileset; do not add vector-only source-layer mappings to raster imagery.
+| Validated format | Layer source fragment | Layer settings fragment |
+|---|---|---|
+| GeoJSON | `type: "geojson"`, exact `Files/...geojson` path | `sourceId`, `options.type: "vector"`; no `sourceLayer` |
+| Vector PMTiles | `type: "pmtiles"`, exact `Files/...pmtiles` path | `sourceLayerId: "<real-internal-id>"` **and** `options.sourceLayer` with the same value; `options.type: "vector"` |
+| COG | `type: "cog"`, exact `Files/...tif` or `.tiff` path | `sourceId`, `options.type: "raster"`, `options.opacity`; no vector source layer |
+
+`cog` is the source discriminator, not `raster`, `tiff`, or `geotiff`; `raster`
+is the layer rendering type. Check the selected schema and current product
+support as in the shared reference; its permissive source `type` string alone
+does not prove a discriminator works. Use the common styling/filter/order
+settings from [authoring.md](../authoring.md#shared-data-layer-settings).
+The builders in [map_layers.py](../../scripts/map_layers.py) compose these
+fragments from successful preflight results; they do not replace the shared
+read-modify-write procedure or authorize a mutation.
 
 ## Readback
 
@@ -97,13 +243,26 @@ After the shared terminal write, verify:
 - the selected data-source branch and its layer link were preserved;
 - the layer source has the exact relative path and type;
 - the layer setting resolves to that source;
-- the source file still exists.
+- the source file still exists;
+- all intended internal layers, labels, fields, filters, opacity, visibility,
+  top-to-bottom order, and initial camera persist;
+- untouched layer/source/filter IDs and definition parts match the baseline;
+- source ETags/lengths/modification times still match preflight (Map filtering
+  and styling must not change the source).
 
-REST readback proves configuration persistence, not successful rendering of a
-malformed or unsupported geospatial file.
+REST readback proves configuration persistence, not successful rendering.
+When the Map can be opened, check source-load errors, placement, stacking,
+visibility, imagery, labels, and tooltips at the saved view. Report any service
+error as returned, including the affected source and request ID when available;
+do not encode environment-specific restrictions as new validation rules.
+If a definition persisted but a layer failed to load, report both facts rather
+than claiming completion. If rendering cannot be observed, mark it unverified.
 
 ## References
 
 - [Lakehouse capabilities](https://learn.microsoft.com/fabric/real-time-intelligence/map/about-lakehouse-layers)
 - [File limits and layer setup](https://learn.microsoft.com/fabric/real-time-intelligence/map/add-lakehouse-layer)
 - [Vector and raster PMTiles](https://learn.microsoft.com/fabric/real-time-intelligence/map/about-tile-sets)
+- [OneLake API access and Storage authentication](https://learn.microsoft.com/fabric/onelake/onelake-access-api)
+- [PMTiles v3 contract](https://github.com/protomaps/PMTiles/blob/main/spec/v3/spec.md)
+- [Layer-scoped filtering](https://learn.microsoft.com/fabric/real-time-intelligence/map/about-data-filtering)

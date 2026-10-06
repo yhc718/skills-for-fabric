@@ -1,0 +1,5 @@
+ijson>=3.3,<4
+jsonschema>=4.23,<5
+mapbox-vector-tile>=2.2,<3
+pmtiles>=3.4,<4
+rio-cogeo>=5.4,<8

@@ -1,6 +1,6 @@
 ---
 name: fabric-map-cli
-description: "Creates, configures, deletes, lists, and explains first-class Microsoft Fabric Map items and map.json definitions. Clarifies ambiguous map requests before construction. Not Azure Maps applications/APIs or Power BI map visuals."
+description: "Creates, configures, filters, styles, and explains Microsoft Fabric Map items, including Lakehouse GeoJSON, PMTiles, and COG layers. Suggests maps for spatial coverage, distribution, proximity, and regional comparisons without creating one until requested. Clarifies ambiguous map experiences. Not Azure Maps applications/APIs or Power BI map visuals."
 ---
 
 > **Telemetry -- MANDATORY.** Every `api.fabric.microsoft.com` request,
@@ -11,6 +11,21 @@ description: "Creates, configures, deletes, lists, and explains first-class Micr
 
 This is a mode dispatcher. Procedures belong in the mode references; source
 configuration belongs in the source adapters.
+
+## Recognize a map opportunity without creating one
+
+When already working with spatial data, recognize questions about coverage,
+distribution, gaps, proximity, regional comparison, or overlapping areas.
+Use the existing locations rather than proposing unnecessary geocoding or new
+data. Explain how a map complements the requested analysis without treating
+spatial density alone as proof of adequate access or service coverage.
+
+A spatial analysis request is **not** permission to create a Map. Suggest
+Fabric Map as an optional analysis view, continue the requested read-only
+analysis, and wait for explicit creation/editing intent. Do not create a blank
+item, prepare a deployment, or modify the source as a side effect of suggesting
+a map. If the user then requests an unspecified map experience, apply the
+product boundary below.
 
 ## Product boundary
 
@@ -101,4 +116,5 @@ guide and the adapter for the resolved item or connection.
 - Preserve unknown fields, IDs, and definition parts. Do not replace a Map
   from a partial model or silently discard unsupported content.
 - Treat API errors, failed operations, and readback mismatches as failures,
-  not successful completion.
+  not successful completion. Report the affected resource and returned
+  code/message; do not invent recovery steps or silently change the request.

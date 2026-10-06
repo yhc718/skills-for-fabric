@@ -269,6 +269,109 @@ an existing field, explicit `locked`, and a supported type (`text`, `boolean`,
 `number`, `datetime`). Use spatial mappings at the locations accepted by the
 Map's schema; preserve existing mappings on unrelated changes.
 
+### Shared data-layer settings
+
+GeoJSON and vector PMTiles use the same geometry-family styling.
+Source adapters supply the source discriminator, path and any internal
+tile-layer binding. Do not duplicate styling per format. The optional read-only builders
+in [map_layers.py](../scripts/map_layers.py) reuse inspected fields and geometry;
+they return fragments, never deploy, and do not replace full-schema validation.
+
+| Intent | Saved setting |
+|---|---|
+| Show/hide | `layerSettings[].options.visible`; retain the source, settings, and ID |
+| Point labels | `options.dataLabelOptions.enabled: true` and `options.dataLabelKeys: ["<real-field>"]` |
+| Tooltips | `options.enablePopups: true` and `options.tooltipKeys: ["<real-field>", ...]` |
+| Color by category | Geometry options' `enableSeriesGroup: true`, `seriesGroup: "<real-field>"`, `customColors`, and a matching color expression in `color`, `strokeColor`, or `fillColor` |
+| Point size by data | `bubbleOptions.sizeType: "data-driven"` and `sizeProperty: "<numeric-field>"` |
+| Line width | `lineOptions.strokeWidth` in pixels, nonnegative |
+| Polygon fill | `polygonOptions.fillColor` and `polygonOptions.fillOpacity` |
+| Imagery opacity | `options.opacity` (75% = `0.75`), not vector fill opacity |
+
+Category metadata alone can populate the legend while the actual features
+remain a single color after reopening. Persist a schema-valid color
+expression alongside the grouping metadata, and verify the rendered expression.
+Do not assume opening the style editor will repair a saved definition.
+
+Use geometry-compatible settings from the current
+[layer settings documentation](https://learn.microsoft.com/fabric/real-time-intelligence/map/customize-map)
+and the selected schema. Report unsupported styling requests rather than
+inventing settings or changing source geometry to make them appear supported.
+For polygon overlays, use the existing polygon geometry, supported fill
+settings, and requested layer order. Do not derive boundary-line layers.
+If an outline request could mean either a polygon overlay or a border-only
+style, clarify the intent unless prior context already resolves it.
+
+Validate every requested label, tooltip, color, size, and filter field against
+that exact file/internal layer, including actual scalar types and missing/null
+values. Numeric styling requires numeric values, not numeric-looking text.
+Suggest real fields on a miss; never invent an alias or silently substitute one.
+Missing feature names remain missing; do not fill them from guesses. Use the
+same category/color mapping when comparing equivalent files, independent of
+feature order. Raster imagery has no feature labels, fields, or attribute filters.
+For equivalent sources with different sampling coverage, pass the same
+`category_colors` mapping to `vector_layer` for both, using the complete
+validated source inventory. Sorting each sample independently is not enough:
+missing categories can shift every later color. The expression must include
+the shared palette, not just categories observed in one tile sample.
+
+### Filters and draw order
+
+Filters are layer-scoped, combined with AND, and do not alter source files.
+Persist regional scope filters on every applicable layer; filtering one layer
+does not filter the others. Keep identifier codes in their actual type:
+string `"06"` must not become number `6`.
+
+```json
+{
+  "id": "<new-filter-uuid>",
+  "type": "text",
+  "field": "<verified-text-field>",
+  "locked": true,
+  "value": ["<verified-value>"]
+}
+```
+
+Numeric filters require **inclusive** `min` and `max`. For an integer count > 0,
+first verify that the field contains integer counts; then use `min: 1` and
+the verified upper bound. Do not translate a strict decimal comparison to
+`min: 0`, guess an epsilon, or invent an upper bound. If the supported filter
+cannot express the requested predicate, explain that limitation before writing.
+GeoJSON and PMTiles do not support date/time filters. On edits, preserve
+unrelated filters and reuse existing filter IDs when changing that filter.
+
+The persisted `layerSettings` array is **top-to-bottom** (front-to-back), not
+draw-first-to-last. "Counties first, points on top" therefore saves points
+before counties. Save foreground layers before background layers, for example
+`[annotations, overlay imagery, base imagery]`. `layerSources` order does not
+control drawing. Preserve relative order of untouched layers during a reorder,
+keep each layer's labels/tooltips/styles/filters attached to its ID, and verify
+the reopened Map rather than relying on array shape alone.
+
+### Initial view for data-backed Maps
+
+Choose the view from the user's analytical focus, in this order:
+
+1. Explicit region or selected feature: compute bounds from matching
+   geometries, not the full unfiltered file or an unverified `bbox`.
+2. Imagery-focused request: use the imagery footprint transformed to
+   longitude/latitude, not an overlaid statewide/nationwide boundary extent.
+3. Otherwise, use the relevant selected layers' verified geographic bounds.
+
+Persist `basemap.options.center` and `zoom`; source bounds alone do not save
+an initial view. Fit in Web Mercator with padding and a stated viewport
+assumption; [inspect_lakehouse.py](../scripts/inspect_lakehouse.py) provides
+`fit_bounds`. Never use a universal world/default zoom or average latitude as
+a substitute for fitting bounds. Check antimeridian, empty selections, point
+extents, and PMTiles zoom availability explicitly. The browser canvas may be a
+different size; check the reopened view at the observed viewport.
+
+Contextual layers must not expand the requested focus region. Use selected
+regional polygons rather than the full source extent, or the imagery footprint
+for an imagery-focused request. Preserve the saved camera on
+hide/style/filter/add-layer edits unless refocusing is requested. Do not change
+the camera just because a tileset has a different header center or minimum zoom.
+
 ## Lifecycle and terminal writes
 
 | Operation | Method and path | Body |
