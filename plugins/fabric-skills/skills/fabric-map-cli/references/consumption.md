@@ -111,6 +111,28 @@ Present the Map in this order:
    labels, and tooltips.
 6. Definition integrity findings.
 
+For file-backed Maps, also report the exact `Files/...` paths, format, selected
+PMTiles internal layers, geometry family, data-driven color/size fields, labels,
+tooltips, saved filters (including locked state), opacity, and top-to-bottom
+layer order. Report explicit hidden layers; do not confuse them with deleted
+sources. Omitted values are not saved defaults.
+
+Distinguish three extents: the **full source extent**, the **filtered feature
+extent**, and the **saved initial camera** (`center`/`zoom`). A source can cover
+more than the selected region or imagery footprint. Neither the filename nor
+a source's header bounds
+proves the currently displayed area. Current browser pan/zoom and temporary
+viewer filters may differ from saved values. Report them only when observed,
+and never save them during an explanation. PMTiles zoom availability and tile
+fragments are not the logical feature count; attribute counts to their evidence
+(complete source scan, archive metadata, or verified distinct source IDs).
+
+Definition readback proves saved configuration; source inspection supplies
+compatibility evidence, not a guarantee of service acceptance; opening the Map
+proves rendering only for the observed view. Report source-load errors as
+returned and distinguish them from successful definition persistence.
+Do not silently "repair" any of these during consumption.
+
 For Ontology layers, include the referenced entity and spatial properties,
 and the source generation when verified. Use the adapter's format checks and
 distinguish unsupported formats from invalid definitions.
