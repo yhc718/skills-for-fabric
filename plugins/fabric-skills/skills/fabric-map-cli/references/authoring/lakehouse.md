@@ -83,21 +83,15 @@ Read content, not just the extension. Inspect each input independently even
 when two filenames appear to describe the same data. Keep evidence outside
 the Map definition; the schema does not accept arbitrary validation metadata.
 
-The optional read-only inspector
-[inspect_lakehouse.py](../../scripts/inspect_lakehouse.py) operates on verified
-local downloads. It never downloads, uploads, creates, or updates a Map.
-Its runtime dependencies are declared in
-[requirements.txt](../../scripts/requirements.txt).
-
-Use `--layer <exact-internal-name>` (repeatable) for vector PMTiles, `--field`
-for label/color/tooltip bindings, `--numeric-field` for sizes, and `--geometry
-point|line|polygon` to validate explicit geometry intent. `--filters` accepts a
-JSON array of typed inspection predicates (`field`, `op: eq|in|gt`, `value`) to
-compute a selected GeoJSON extent; these predicates are **not** serialized Map
-filters. Use the shared authoring reference for the saved filter shape.
-If using the inspector, report its errors and stop before writing. A successful
-report supports definition assembly; it does not guarantee service acceptance
-or rendering. A decoder/dependency failure leaves inspection incomplete.
+Use available read-only format readers to inspect verified downloads or
+authenticated byte ranges. Validate requested internal layers, geometry,
+fields, and numeric bindings explicitly. Compute selected extents using typed
+predicates without changing the source; serialize Map filters using the
+shared authoring reference, not a reader's filter syntax.
+Report inspection errors and stop before writing. Successful inspection
+supports definition assembly; it does not guarantee service acceptance or
+rendering. If a required reader is unavailable or decoding fails, report
+inspection as incomplete rather than treating the source as validated.
 
 ### GeoJSON
 
@@ -107,7 +101,7 @@ or rendering. A decoder/dependency failure leaves inspection incomplete.
 - Check longitude/latitude coordinates and any declared CRS against EPSG:4326.
   Report an incompatible projection and stop; do not reinterpret projected
   coordinates as degrees or offer reprojection.
-  The inspector conservatively rejects an explicit legacy `crs: null` as an
+  Treat an explicit legacy `crs: null` conservatively as an
   unknown CRS, rather than assuming WGS84. An absent `crs` uses GeoJSON's
   longitude/latitude convention. Confirm the source CRS in a separately
   requested source-data workflow; Map authoring does not rewrite metadata.
@@ -124,20 +118,22 @@ or rendering. A decoder/dependency failure leaves inspection incomplete.
 
 ### Vector PMTiles
 
-- Check magic bytes, **archive version** (the inspector supports v3), section
+- Check magic bytes, **archive version**, section
   offsets/lengths, compression, and the header tile type. This is independent
-  of the Map schema version. Require MVT for the vector path; raster PMTiles
+  of the Map schema version. Use a reader compatible with the archive version
+  and compression. Require MVT for the vector path; raster PMTiles
   must use a separately validated imagery path, not vector styling.
 - Validate longitude/latitude bounds, center and zoom range. Check metadata
   against the header and report inconsistencies. An archive's suggested center
   zoom is not an instruction to reset an existing Map camera.
 - Discover **all** `vector_layers[].id` values and fields; use `tilestats` when
   present, then decode actual MVT tiles to verify geometry and requested fields.
-  The inspector records the sample budget and observed types. Increase
-  `--sample-tiles` or inspect targeted tiles if a requested layer/field is not
+  Record the sample budget and observed types. Increase the sample budget
+  or inspect targeted tiles if a requested layer/field is not
   observed. Sampling must not be presented as exhaustive coverage.
-  `samplingComplete` records whether the tile reader was exhausted, not a
-  comparison with optional header counts or the number of unique tile blobs.
+  Establish full-scan completion from reader exhaustion, not equality with an
+  optional header count. Counts may be unknown, and addressed tiles can share
+  the same stored payload.
 - Resolve requested layers against the real inventory, including their geometry
   families. On a missing internal layer, name it and list the available choices;
   do not write. Add settings only for the selected internal layers and share
@@ -156,12 +152,13 @@ or rendering. A decoder/dependency failure leaves inspection incomplete.
 ### Cloud Optimized GeoTIFF
 
 - Verify TIFF/BigTIFF content and **structural cloud optimization**, not `.tif`,
-  a `LAYOUT=COG` tag, or "tiled" alone. Use a structural validator such as
-  `rio_cogeo.cogeo.cog_validate(..., strict=True)` to check IFD/overview ordering,
+  a `LAYOUT=COG` tag, or "tiled" alone. Use strict structural validation to
+  check IFD/overview ordering,
   internal tiling, and data layout. Surface errors and warnings.
 - Check EPSG:3857, 3-band RGB or 4-band RGBA, and the display-band data types.
-  The inspector supports Byte/uint8 imagery. Report incompatible projection,
-  bands, or types without offering conversion.
+  Verify that the display-band types are supported by the direct RGB imagery
+  path; do not infer compatibility from the file extension. Report incompatible
+  projection, bands, or types without offering conversion.
 - Record raster dimensions, blocks, overviews, projected extent and its
   geographic transform. Use the imagery footprint for an imagery-focused
   initial view, not the extent of contextual polygon layers.
@@ -231,9 +228,8 @@ is the layer rendering type. Check the selected schema and current product
 support as in the shared reference; its permissive source `type` string alone
 does not prove a discriminator works. Use the common styling/filter/order
 settings from [authoring.md](../authoring.md#shared-data-layer-settings).
-The builders in [map_layers.py](../../scripts/map_layers.py) compose these
-fragments from successful preflight results; they do not replace the shared
-read-modify-write procedure or authorize a mutation.
+Assemble these fragments only from successful preflight results, then follow
+the shared full-schema validation and read-modify-write procedure.
 
 ## Readback
 

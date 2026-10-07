@@ -273,9 +273,9 @@ Map's schema; preserve existing mappings on unrelated changes.
 
 GeoJSON and vector PMTiles use the same geometry-family styling.
 Source adapters supply the source discriminator, path and any internal
-tile-layer binding. Do not duplicate styling per format. The optional read-only builders
-in [map_layers.py](../scripts/map_layers.py) reuse inspected fields and geometry;
-they return fragments, never deploy, and do not replace full-schema validation.
+tile-layer binding. Do not duplicate styling per format. Build settings from
+verified fields and geometry, then validate the complete definition against
+the selected schema before writing.
 
 | Intent | Saved setting |
 |---|---|
@@ -309,14 +309,15 @@ Suggest real fields on a miss; never invent an alias or silently substitute one.
 Missing feature names remain missing; do not fill them from guesses. Use the
 same category/color mapping when comparing equivalent files, independent of
 feature order. Raster imagery has no feature labels, fields, or attribute filters.
-For equivalent sources with different sampling coverage, pass the same
-`category_colors` mapping to `vector_layer` for both, using the complete
-validated source inventory. Sorting each sample independently is not enough:
+For equivalent sources with different sampling coverage, use the same
+explicit category-to-color mapping for both, based on the complete validated
+source inventory. Sorting each sample independently is not enough:
 missing categories can shift every later color. The expression must include
 the shared palette, not just categories observed in one tile sample.
-The builder rejects automatic palettes when field values are truncated or
-PMTiles sampling is incomplete. In either case, supply `category_colors` from
-a complete validated inventory; the builder can verify only observed categories.
+Do not generate a palette solely from truncated field values or an incomplete
+PMTiles sample. Obtain a complete validated category inventory and ensure the
+explicit palette covers it before writing; do not silently assign unobserved
+categories a fallback color.
 
 ### Filters and draw order
 
@@ -363,11 +364,10 @@ Choose the view from the user's analytical focus, in this order:
 
 Persist `basemap.options.center` and `zoom`; source bounds alone do not save
 an initial view. Fit in Web Mercator with padding and a stated viewport
-assumption; [inspect_lakehouse.py](../scripts/inspect_lakehouse.py) provides
-`fit_bounds`. Never use a universal world/default zoom or average latitude as
-a substitute for fitting bounds. The helper caps the fitted zoom at 16 by
-default so a single point retains useful context. Override `maximum_zoom`
-explicitly when the requested view needs more detail (up to 22).
+assumption. Never use a universal world/default zoom or average latitude as
+a substitute for fitting bounds. Cap the fitted zoom at 16 by default so a
+single point retains useful context. Use a higher zoom only when the requested
+view needs more detail (up to the supported maximum of 22).
 Check antimeridian, empty selections, point
 extents, and PMTiles zoom availability explicitly. The browser canvas may be a
 different size; check the reopened view at the observed viewport.
