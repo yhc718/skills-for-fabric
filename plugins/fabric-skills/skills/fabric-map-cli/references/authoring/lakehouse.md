@@ -86,22 +86,8 @@ the Map definition; the schema does not accept arbitrary validation metadata.
 The optional read-only inspector
 [inspect_lakehouse.py](../../scripts/inspect_lakehouse.py) operates on verified
 local downloads. It never downloads, uploads, creates, or updates a Map.
-Install [requirements.txt](../../scripts/requirements.txt) into an isolated
-environment if using it:
-
-```powershell
-python -m venv <local-venv>
-& <local-venv>\Scripts\python.exe -m pip install -r <skill-root>\scripts\requirements.txt
-& <local-venv>\Scripts\python.exe <skill-root>\scripts\inspect_lakehouse.py <downloaded-file>
-```
-
-On Linux/macOS, use the environment's `bin/python`:
-
-```bash
-python3 -m venv /path/to/local-venv
-/path/to/local-venv/bin/python -m pip install -r /path/to/skill-root/scripts/requirements.txt
-/path/to/local-venv/bin/python /path/to/skill-root/scripts/inspect_lakehouse.py /path/to/downloaded-file
-```
+Its runtime dependencies are declared in
+[requirements.txt](../../scripts/requirements.txt).
 
 Use `--layer <exact-internal-name>` (repeatable) for vector PMTiles, `--field`
 for label/color/tooltip bindings, `--numeric-field` for sizes, and `--geometry
@@ -150,6 +136,8 @@ or rendering. A decoder/dependency failure leaves inspection incomplete.
   The inspector records the sample budget and observed types. Increase
   `--sample-tiles` or inspect targeted tiles if a requested layer/field is not
   observed. Sampling must not be presented as exhaustive coverage.
+  `samplingComplete` records whether the tile reader was exhausted, not a
+  comparison with optional header counts or the number of unique tile blobs.
 - Resolve requested layers against the real inventory, including their geometry
   families. On a missing internal layer, name it and list the available choices;
   do not write. Add settings only for the selected internal layers and share

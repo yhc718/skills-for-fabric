@@ -66,7 +66,7 @@ def validate_bounds(bounds):
     return list(bounds)
 
 
-def fit_bounds(bounds, width=1024, height=640, padding=64, minimum_zoom=1, maximum_zoom=22):
+def fit_bounds(bounds, width=1024, height=640, padding=64, minimum_zoom=1, maximum_zoom=16):
     """Fit Web Mercator bounds with padding and caller-supplied zoom limits."""
     west, south, east, north = validate_bounds(bounds)
     require(width > padding * 2 and height > padding * 2, "Viewport is smaller than padding")
@@ -356,8 +356,12 @@ def inspect_pmtiles(path, requested_layers=(), sample_tiles=256):
             stats[layer["id"]] = {"declaredFields": layer["fields"], "geometryTypes": Counter(),
                                   "sample": Fields(), "sampledTiles": 0}
         scanned = 0
+        sampling_complete = True
         # This is evidence of observed geometry/fields, not a logical feature count.
         for (z, x, y), tile in all_tiles(get_bytes):
+            if scanned >= sample_tiles:
+                sampling_complete = False
+                break
             require(header["min_zoom"] <= z <= header["max_zoom"], "Tile lies outside declared zoom range")
             if header["tile_compression"] == Compression.GZIP:
                 tile = gzip.decompress(tile)
@@ -372,8 +376,6 @@ def inspect_pmtiles(path, requested_layers=(), sample_tiles=256):
                     stat["geometryTypes"][kind] += 1
                     stat["sample"].add(feature["properties"])
             scanned += 1
-            if scanned >= sample_tiles:
-                break
         result_layers = {}
         for name, stat in stats.items():
             result_layers[name] = {
@@ -390,7 +392,7 @@ def inspect_pmtiles(path, requested_layers=(), sample_tiles=256):
                   "bounds": bounds, "center": center, "minZoom": header["min_zoom"],
                   "maxZoom": header["max_zoom"], "centerZoom": header["center_zoom"],
                   "layers": result_layers, "sampledTiles": scanned,
-                  "samplingComplete": scanned == header["addressed_tiles_count"],
+                  "samplingComplete": sampling_complete,
                   "metadata": metadata, "tilestats": tilestats, "errors": [], "warnings": warnings}
         for name in requested_layers:
             if not result_layers[name]["geometryTypes"]:

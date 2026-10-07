@@ -365,9 +365,10 @@ Persist `basemap.options.center` and `zoom`; source bounds alone do not save
 an initial view. Fit in Web Mercator with padding and a stated viewport
 assumption; [inspect_lakehouse.py](../scripts/inspect_lakehouse.py) provides
 `fit_bounds`. Never use a universal world/default zoom or average latitude as
-a substitute for fitting bounds. For a point or very small extent, pass an
-explicit `maximum_zoom` suited to the requested context; the helper retains
-the schema maximum of 22 by default. Check antimeridian, empty selections, point
+a substitute for fitting bounds. The helper caps the fitted zoom at 16 by
+default so a single point retains useful context. Override `maximum_zoom`
+explicitly when the requested view needs more detail (up to 22).
+Check antimeridian, empty selections, point
 extents, and PMTiles zoom availability explicitly. The browser canvas may be a
 different size; check the reopened view at the observed viewport.
 
