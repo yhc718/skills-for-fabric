@@ -325,8 +325,8 @@ categories a fallback color.
 ### Filters and draw order
 
 Filters are layer-scoped, combined with AND, and do not alter source files or
-KQL entities. Administrative membership filters are not spatial intersections:
-neighboring grid cells can overlap the target region but must still be excluded.
+KQL entities. Region filters select features by attribute membership, not by
+spatial overlap.
 Persist regional scope filters on every applicable layer; filtering one layer
 does not filter the others. Keep identifier codes in their actual type:
 string `"06"` must not become number `6`.
