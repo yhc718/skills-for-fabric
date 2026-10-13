@@ -1,6 +1,6 @@
 ---
 name: fabric-map-cli
-description: "Creates, configures, deletes, lists, filters, styles, and explains Microsoft Fabric Map items, including Lakehouse GeoJSON, PMTiles, and COG layers. Suggests maps for spatial coverage, distribution, proximity, and regional comparisons without creating one until requested. Clarifies ambiguous map experiences. Not Azure Maps applications/APIs or Power BI map visuals."
+description: "Creates, configures, deletes, lists, filters, styles, and explains Microsoft Fabric Map items with Lakehouse GeoJSON, PMTiles, and COG files and Eventhouse (KQL Database) tables, functions, and materialized views, including automatic refresh. Suggests maps for spatial coverage, distribution, proximity, and regional comparisons without creating one until requested. Clarifies ambiguous map experiences. Not Azure Maps applications/APIs or Power BI map visuals."
 ---
 
 > **Telemetry -- MANDATORY.** Every `api.fabric.microsoft.com` request,
@@ -95,6 +95,11 @@ incomplete.
 Variable references parameterize a supported source; they are not a separate
 geometry provider. For variable-backed layers, read the variable reference
 guide and the adapter for the resolved item or connection.
+
+For Eventhouse-backed Maps, this skill owns the Map and `eventhouse-cli`
+consumption owns read-only entity discovery/querying. Map authoring never
+authorizes source mutations. Mixed Lakehouse/Eventhouse layers keep independent
+source fragments and reuse the same core rendering, filter and camera settings.
 
 ## Shared rules
 
