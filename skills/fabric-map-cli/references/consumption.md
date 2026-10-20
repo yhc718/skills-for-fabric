@@ -8,9 +8,11 @@
 
 ## Capability questions
 
-General questions about supported sources or connections need no workspace,
-Map lookup, or authentication. Read the relevant source adapter's capability
-summary: [Lakehouse](authoring/lakehouse.md),
+General capability questions need no workspace, Map lookup, authentication, or
+source setup. Apply the shared capability-discovery rule internally without
+asking users to select a workflow. Clarify only unresolved details that
+materially affect the answer. For source-specific capabilities, read the
+relevant adapter's summary: [Lakehouse](authoring/lakehouse.md),
 [Eventhouse](authoring/eventhouse.md),
 [connections](authoring/connections.md), [Ontology](authoring/ontology.md), or
 [variable references](authoring/variables.md). These documentation reads remain in
