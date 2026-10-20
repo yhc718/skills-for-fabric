@@ -10,7 +10,7 @@
 
 General capability questions need no workspace, Map lookup, authentication, or
 source setup. Apply the shared capability-discovery rule internally without
-asking users to select a workflow. Clarify only unresolved details that
+asking users to select a workflow, clarify when unresolved details that
 materially affect the answer. For source-specific capabilities, read the
 relevant adapter's summary: [Lakehouse](authoring/lakehouse.md),
 [Eventhouse](authoring/eventhouse.md),
