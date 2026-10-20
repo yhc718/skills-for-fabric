@@ -84,6 +84,8 @@ These families are not an exhaustive feature list. Resolve unlisted features
 and exact support, properties, restrictions, and new functionality through the
 latest [Fabric Maps documentation](https://learn.microsoft.com/fabric/real-time-intelligence/map/about-fabric-maps)
 and latest published Map schema using the shared schema-resolution procedure.
+For product capabilities and limits, current official references take precedence
+over copied summaries in this skill, including its source adapters.
 Neither a user's request nor omission from this skill establishes support.
 Apply supported capabilities using the documented structure and source
 constraints. On edits, preserve the artifact's declared schema and unrelated
