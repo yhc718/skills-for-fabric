@@ -72,6 +72,25 @@ no-change instruction takes precedence over authoring verbs. A read-modify-write
 request is authoring, including its prerequisite reads. Announce a mode switch
 and load the new reference when the user's intent changes.
 
+## Capability discovery
+
+Capability families include Map lifecycle and editing, basemap and camera,
+vector points/lines/polygons, heatmaps, raster imagery, layer order and visibility,
+labels and tooltips, filtering, clustering, and fixed or data-driven styling.
+Source adapters cover Lakehouse spatial files, Eventhouse/KQL spatial results
+and refresh, and supported external spatial connections.
+
+These families are not an exhaustive feature list. Resolve unlisted features
+and exact support, properties, restrictions, and new functionality through the
+latest [Fabric Maps documentation](https://learn.microsoft.com/fabric/real-time-intelligence/map/about-fabric-maps)
+and latest published Map schema using the shared schema-resolution procedure.
+For product capabilities and limits, current official references take precedence
+over copied summaries in this skill, including its source adapters.
+Neither a user's request nor omission from this skill establishes support.
+Apply supported capabilities using the documented structure and source
+constraints. On edits, preserve the artifact's declared schema and unrelated
+state; newer capabilities do not authorize an implicit schema migration.
+
 ## Source adapters
 
 Load only adapters relevant to the requested sources or capability question.

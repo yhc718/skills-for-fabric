@@ -279,6 +279,15 @@ validated independently for each entity. Build settings from verified fields
 and geometry, then validate the complete definition against the selected
 schema before writing.
 
+Use fixed styling for a uniform presentation and data-driven styling to compare
+feature attributes: distinguish categorical values or reveal numerical spatial
+patterns through supported ranges or gradients. This is shared vector-layer
+behavior, independent of Lakehouse or Eventhouse sourcing; discover exact
+bindings and supported renderings through the capability-discovery rule.
+Clustering groups compatible point features for readability; verify support
+for the source and rendering rather than assuming it applies to every vector
+layer.
+
 | Intent | Saved setting |
 |---|---|
 | Show/hide | `layerSettings[].options.visible`; retain the source, settings, and ID |
