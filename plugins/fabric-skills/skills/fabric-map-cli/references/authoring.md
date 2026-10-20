@@ -190,7 +190,7 @@ response must include all three parts below:
 |---|---|
 | Lakehouse | GeoJSON, vector/raster PMTiles, and COG; compatible points, lines, polygons, heatmaps, and extrusions versus raster imagery; key file/format limits |
 | Eventhouse / KQL Database | Coordinates or GeoJSON geometry, compatible vector renderings, and result/function limits; distinguish direct table preview limits from general query results |
-| External connections | Name Geospatial Web Services for WMS/WMTS and Microsoft Planetary Computer for MPC Pro; imagery-only rendering and projection/image-format limits, not arbitrary Fabric connectors |
+| External connections | Geospatial Web Services for imagery or vector feature services, and Microsoft Planetary Computer for MPC Pro imagery; distinguish geometry, protocol, access, and format constraints, not arbitrary Fabric connectors |
 | Ontology (preview) | Entity-backed spatial layers; numeric coordinates or geometry properties; up to 100,000 returned features |
 | Variable references | Parameterize supported item/connection sources, not geometry; selected-schema and variable-type compatibility, active value set, and underlying source permissions still apply |
 
@@ -271,8 +271,9 @@ Map's schema; preserve existing mappings on unrelated changes.
 
 ### Shared data-layer settings
 
-GeoJSON, vector PMTiles and Kusto results use the same geometry-family styling.
-Source adapters supply the source discriminator, path/query part, spatial
+GeoJSON, vector PMTiles, Kusto results and external feature services use the same
+geometry-family styling.
+Source adapters supply the source discriminator, retrieval configuration, spatial
 mapping and any internal tile-layer binding. Do not duplicate styling per
 format. Kusto uses either a latitude/longitude pair or one geometry column,
 validated independently for each entity. Build settings from verified fields
