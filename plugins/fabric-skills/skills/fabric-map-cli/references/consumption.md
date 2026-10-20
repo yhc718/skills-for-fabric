@@ -9,8 +9,9 @@
 ## Capability questions
 
 General capability questions need no workspace, Map lookup, authentication, or
-source setup. Apply the shared capability-discovery rule internally, clarify when unresolved details that
-materially affect the answer. For source-specific capabilities, read the
+source setup. Apply the shared capability-discovery rule internally. Ask for
+clarification only when unresolved details materially affect the answer.
+For source-specific capabilities, read the
 relevant adapter's summary: [Lakehouse](authoring/lakehouse.md),
 [Eventhouse](authoring/eventhouse.md),
 [connections](authoring/connections.md), [Ontology](authoring/ontology.md), or
