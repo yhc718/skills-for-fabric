@@ -273,7 +273,7 @@ Map's schema; preserve existing mappings on unrelated changes.
 
 GeoJSON, vector PMTiles, Kusto results and external feature services use the same
 geometry-family styling.
-Source adapters supply the source discriminator, retrieval configuration, spatial
+Source adapters supply the source discriminator, path/query part, spatial
 mapping and any internal tile-layer binding. Do not duplicate styling per
 format. Kusto uses either a latitude/longitude pair or one geometry column,
 validated independently for each entity. Build settings from verified fields
@@ -315,9 +315,9 @@ If an outline request could mean either a polygon overlay or a border-only
 style, clarify the intent unless prior context already resolves it.
 
 Validate every requested label, tooltip, color, size, and filter field against
-that exact file/internal layer or KQL entity result, including actual scalar
-types and missing/null values. Numeric styling requires numeric values, not
-numeric-looking text.
+that exact file/internal layer, KQL entity result, or feature-service result,
+including actual scalar types and missing/null values. Numeric styling requires
+numeric values, not numeric-looking text.
 Suggest real fields on a miss; never invent an alias or silently substitute one.
 Missing feature names remain missing; do not fill them from guesses. Use the
 same category/color mapping when comparing equivalent files, independent of
